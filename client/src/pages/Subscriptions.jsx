@@ -10,6 +10,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
 import Drawer from '../components/ui/Drawer.jsx';
 import SubscriptionCard from '../components/SubscriptionCard.jsx';
+import '../components/subscriptions.css';
 import SubscriptionTable from '../components/SubscriptionTable.jsx';
 import SubscriptionDetails from '../components/SubscriptionDetails.jsx';
 import { CATEGORIES, CYCLES } from '../utils/constants.js';
@@ -138,7 +139,7 @@ export default function Subscriptions() {
 
       <div className="chips" role="group" aria-label="Filter by status">
         {STATUS_CHIPS.map(([value, label]) => (
-          <button key={value} type="button" className={`chip ${status === value ? 'active' : ''}`} aria-pressed={status === value} onClick={() => setStatus(value)}>
+          <button key={value} type="button" className={`chip ${status === value ? 'active' : ''} ${counts[value] === 0 ? 'is-zero' : ''}`} aria-pressed={status === value} onClick={() => setStatus(value)}>
             {label} <span className="chip-count">{counts[value]}</span>
           </button>
         ))}

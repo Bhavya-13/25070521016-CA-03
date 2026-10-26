@@ -1,0 +1,35 @@
+/* Subscription cards. New st- class names, and .sub-grid in the selectors so these win over the older card rules. */
+div.sub-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+.sub-grid .sub-tile { gap: 14px; padding: 18px 18px 12px; border-radius: 18px; }
+
+.sub-grid .sub-tile .st-top { display: flex; align-items: center; gap: 12px; }
+.sub-grid .sub-tile .st-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.sub-grid .sub-tile .st-title .plain-link { font-size: 1.02rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-grid .sub-tile .st-top .badge { flex-shrink: 0; }
+
+.sub-grid .sub-tile .st-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+
+.sub-grid .sub-tile .st-price { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.sub-grid .sub-tile .st-amount { display: flex; flex-direction: column; gap: 3px; line-height: 1.15; min-width: 0; }
+.sub-grid .sub-tile .st-amount strong { font-size: 1.65rem; letter-spacing: -0.025em; }
+.sub-grid .sub-tile .approx { font-size: 1.05rem; font-weight: 500; color: var(--muted); margin-right: 5px; }
+.sub-grid .sub-tile .st-cycle { flex-shrink: 0; font-size: 0.76rem; font-weight: 650; color: var(--muted); background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px; margin-bottom: 3px; white-space: nowrap; }
+
+.sub-grid .sub-tile .st-meta { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin: 0; padding-top: 12px; border-top: 1px dashed var(--border); }
+.sub-grid .sub-tile .st-meta > div { min-width: 0; }
+.sub-grid .sub-tile .st-meta dt { font-size: 0.72rem; color: var(--muted); margin-bottom: 2px; }
+.sub-grid .sub-tile .st-meta dd { font-size: 0.88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* quiet action row: no borders until you hover, delete pushed to the far end */
+.sub-grid .sub-tile .st-actions { display: flex; gap: 2px; margin: auto -6px 0; padding: 4px 0 0; border-top: none; }
+.sub-grid .sub-tile .st-actions .icon-btn.sm { border-color: transparent; background: transparent; }
+.sub-grid .sub-tile .st-actions .icon-btn.sm:hover { background: var(--card-2); border-color: var(--border); }
+.sub-grid .sub-tile .st-actions .icon-btn.sm.danger { margin-left: auto; }
+
+/* status filter chips that have nothing in them fade back */
+.chips .chip.is-zero:not(.active) { opacity: 0.55; }
+
+@media (max-width: 640px) {
+  div.sub-grid { grid-template-columns: minmax(0, 1fr); }
+  .sub-grid .sub-tile .st-meta { grid-template-columns: 1fr 1fr; }
+}

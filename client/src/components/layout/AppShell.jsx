@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Wallet, X } from 'lucide-react';
 import { useData } from '../../context/DataContext.jsx';
+import './topbar.css';
 import { useUI } from '../../context/UIContext.jsx';
 import { totals } from '../../utils/finance.js';
 import { NAV_ITEMS } from './nav.js';

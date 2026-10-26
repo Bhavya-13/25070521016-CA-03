@@ -1,16 +1,17 @@
 import { Check, Eye, Pause, Pencil, Play, RotateCcw, Trash2 } from 'lucide-react';
 import ServiceIcon from './ServiceIcon.jsx';
-import './fx.css';
 import StatusBadge, { PaidBadge, UnpaidBadge } from './StatusBadge.jsx';
-import { useUI } from '../context/UIContext.jsx';
 import { useData } from '../context/DataContext.jsx';
-import { cycleText } from '../utils/finance.js';
+import { useUI } from '../context/UIContext.jsx';
+import { cycleText, paidAhead } from '../utils/finance.js';
 import { renewalState } from '../utils/format.js';
+import './fx.css';
+import './subscriptions.css';
 
-export function QuickActions({ sub, onOpen, onEdit, actions }) {
+export function QuickActions({ sub, onOpen, onEdit, actions, className = '' }) {
   const { openPay } = useUI();
   return (
-    <div className="quick-actions">
+    <div className={`quick-actions ${className}`}>
       <button type="button" className="icon-btn sm" onClick={() => onOpen(sub)} aria-label={`View ${sub.name}`} title="Details"><Eye size={15} /></button>
       {sub.status === 'active' && (
         <button type="button" className="icon-btn sm" onClick={() => openPay(sub._id, (sub.pendingDates || [])[0] || null)} aria-label={`Mark ${sub.name} as paid`} title="Mark as paid"><Check size={15} /></button>
@@ -32,35 +33,47 @@ export default function SubscriptionCard({ sub, onOpen, onEdit, actions }) {
   const { today, fmt, converter, currency } = useData();
   const st = renewalState(sub, today);
   const shown = sub.currency !== currency && converter.has(sub.currency) ? converter.convert(sub.price, sub.currency) : null;
+  const unpaid = sub.status === 'active' ? (sub.pendingDates || []).length : 0;
+  const ahead = sub.status === 'active' ? paidAhead(sub, today) : null;
+  const payments = sub.payments || [];
+  const lastPaid = payments.length ? fmt.shortDate(payments[payments.length - 1].paidOn) : '-';
 
   return (
     <article className={`sub-tile state-${st.key}`}>
-      <div className="sub-tile-top">
+      <header className="st-top">
         <ServiceIcon name={sub.name} color={sub.color} icon={sub.icon} size={42} />
-        <div className="sub-tile-title">
-          <button type="button" className="plain-link" onClick={() => onOpen(sub)}>{sub.name}</button>
+        <div className="st-title">
+          <button type="button" className="plain-link" onClick={() => onOpen(sub)} title={sub.name}>{sub.name}</button>
           <span className="muted small">{sub.category}{sub.isDemo ? ' - Demo' : ''}</span>
         </div>
-        <div className="badge-stack">
-          <StatusBadge state={st} />
+        <StatusBadge state={st} />
+      </header>
+
+      {(unpaid > 0 || ahead) && (
+        <div className="st-flags">
           <UnpaidBadge sub={sub} />
           <PaidBadge sub={sub} />
         </div>
+      )}
+
+      <div className="st-price">
+        <div className="st-amount">
+          <strong>
+            {shown != null && <span className="approx">{'\u2248'}</span>}
+            {shown != null ? fmt.money(shown, currency) : fmt.money(sub.price, sub.currency)}
+          </strong>
+          {shown != null && <span className="muted small">{fmt.money(sub.price, sub.currency)} originally</span>}
+        </div>
+        <span className="st-cycle">{cycleText(sub)}</span>
       </div>
 
-      <div className="sub-tile-price">
-        <strong>{shown != null ? `\u2248 ${fmt.money(shown, currency)}` : fmt.money(sub.price, sub.currency)}</strong>
-        <span className="muted">{cycleText(sub)}</span>
-        {shown != null && <span className="muted small">{fmt.money(sub.price, sub.currency)} originally</span>}
-      </div>
-
-      <dl className="sub-tile-meta">
+      <dl className="st-meta">
         <div><dt>Next renewal</dt><dd>{sub.status === 'cancelled' ? '-' : fmt.date(sub.nextRenewal)}</dd></div>
+        <div><dt>Last paid</dt><dd>{lastPaid}</dd></div>
         <div><dt>Payment</dt><dd>{sub.paymentMethod || '-'}</dd></div>
-        <div><dt>Last paid</dt><dd>{(sub.payments || []).length ? fmt.shortDate(sub.payments[sub.payments.length - 1].paidOn) : '-'}</dd></div>
       </dl>
 
-      <QuickActions sub={sub} onOpen={onOpen} onEdit={onEdit} actions={actions} />
+      <QuickActions sub={sub} onOpen={onOpen} onEdit={onEdit} actions={actions} className="st-actions" />
     </article>
   );
 }

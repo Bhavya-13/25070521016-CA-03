@@ -1,0 +1,31 @@
+/* Top bar: the page name always stays fully readable; the less important bits give way first. */
+.topbar .crumbs { min-width: 0; flex: 1 1 0; overflow: hidden; }
+.topbar .crumbs > span { white-space: nowrap; }
+.topbar .crumbs > span:first-child { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.topbar .crumbs > span:last-child { flex-shrink: 0; }
+
+/* medium screens: drop the "Watchdog /" prefix */
+@media (max-width: 1400px) {
+  .topbar .crumbs > .muted:first-child, .topbar .crumbs > .muted:nth-child(2) { display: none; }
+}
+/* between 1201 and 1400px the search box gets narrower and hides its shortcut hint.
+   Below 1200px the app already collapses it to an icon, so nothing is forced there. */
+@media (min-width: 1201px) and (max-width: 1400px) {
+  .topbar .search-trigger { min-width: 0; width: 220px; }
+  .topbar .search-trigger kbd { display: none; }
+}
+@media (max-width: 640px) {
+  .topbar { gap: 8px; padding: 10px 12px; }
+  .topbar .top-actions { gap: 6px; }
+  .topbar .crumbs > span:last-child { font-size: 0.98rem; }
+}
+/* small phones (360px and below): slightly tighter controls so the page name still fits */
+@media (max-width: 400px) {
+  .topbar { gap: 6px; padding: 10px 10px; }
+  .topbar .top-actions { gap: 4px; }
+  .topbar .icon-btn { width: 34px; height: 34px; }
+  .topbar .search-trigger { padding: 8px 9px; }
+  .topbar .btn.primary { padding: 9px 11px; }
+  .topbar .profile-btn { padding: 3px; }
+  .topbar .crumbs > span:last-child { font-size: 0.92rem; }
+}
