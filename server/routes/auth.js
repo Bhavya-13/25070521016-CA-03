@@ -78,4 +78,42 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// PUT /api/auth/profile  (name only; email cannot be changed)
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name || name.length > 60) {
+      return res.status(400).json({ message: 'Enter a name up to 60 characters' });
+    }
+    const user = await User.findByIdAndUpdate(req.userId, { name }, { new: true });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not update profile' });
+  }
+});
+
+// PUT /api/auth/password
+router.put('/password', auth, async (req, res) => {
+  try {
+    const current = String(req.body.currentPassword || '');
+    const next = String(req.body.newPassword || '');
+    if (next.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const ok = await bcrypt.compare(current, user.password);
+    if (!ok) return res.status(400).json({ message: 'Current password is incorrect' });
+
+    user.password = await bcrypt.hash(next, 10);
+    await user.save();
+    res.json({ message: 'Password updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not update password' });
+  }
+});
+
 export default router;

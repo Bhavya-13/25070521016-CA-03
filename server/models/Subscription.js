@@ -1,27 +1,34 @@
 import mongoose from 'mongoose';
 
-export const CYCLES = ['monthly', 'yearly'];
-export const CATEGORIES = [
-  'Entertainment',
-  'Music',
-  'Productivity',
-  'Cloud',
-  'Education',
-  'Health',
-  'Other',
-];
+const priceEntry = new mongoose.Schema({ price: Number, changedAt: String }, { _id: false });
 
+// Dates are stored as plain "YYYY-MM-DD" strings so they never shift with time zones.
+// Stored in a fresh collection (subscriptions_v2) because the data shape changed.
 const subscriptionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 60 },
+    category: { type: String, default: 'Other' },
     price: { type: Number, required: true, min: 0 },
-    cycle: { type: String, enum: CYCLES, default: 'monthly' },
-    category: { type: String, enum: CATEGORIES, default: 'Other' },
-    color: { type: String, default: '#6c8cff' },
-    nextRenewal: { type: Date, required: true },
+    currency: { type: String, default: 'INR' },
+    cycle: { type: String, default: 'monthly' },
+    customDays: { type: Number, default: null },
+    nextRenewal: { type: String, required: true },
+    startDate: { type: String, default: null },
+    paymentMethod: { type: String, default: '' },
+    status: { type: String, default: 'active' },
+    reminderDays: { type: Number, default: 3 },
+    notes: { type: String, default: '' },
+    color: { type: String, default: '#8B78FF' },
+    icon: { type: String, default: '' },
+    overlapGroup: { type: String, default: '' },
+    altCycle: { type: String, default: null },
+    altPrice: { type: Number, default: null },
+    priceHistory: { type: [priceEntry], default: [] },
+    lastReviewedAt: { type: String, default: null },
+    isDemo: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-export default mongoose.model('Subscription', subscriptionSchema);
+export default mongoose.model('Subscription', subscriptionSchema, 'subscriptions_v2');

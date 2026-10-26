@@ -1,7 +1,7 @@
 {
   "name": "server",
-  "version": "1.0.0",
-  "description": "Subscription Watchdog API",
+  "version": "2.0.0",
+  "description": "Watchdog API",
   "type": "module",
   "main": "index.js",
   "scripts": {

@@ -28,6 +28,11 @@ export function AuthProvider({ children }) {
     persist(data);
   };
 
+  const updateUser = (next) => {
+    localStorage.setItem('user', JSON.stringify(next));
+    setUser(next);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -35,7 +40,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

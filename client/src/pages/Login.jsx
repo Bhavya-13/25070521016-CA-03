@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { errorMessage } from '../api.js';
+import AuthShell from '../components/AuthShell.jsx';
 
 export default function Login() {
   const { login } = useAuth();
@@ -16,7 +17,7 @@ export default function Login() {
     setBusy(true);
     try {
       await login(form.email, form.password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -24,43 +25,22 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-wrap">
+    <AuthShell>
       <form className="card auth-card" onSubmit={submit}>
         <h1>Welcome back</h1>
         <p className="muted">Sign in to see what renews next.</p>
-
-        {error && <div className="alert">{error}</div>}
-
-        <label>
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
+        {error && <div className="alert" role="alert">{error}</div>}
+        <label className="field">
+          <span className="field-label">Email</span>
+          <input type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </label>
-
-        <label>
-          Password
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
+        <label className="field">
+          <span className="field-label">Password</span>
+          <input type="password" required autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         </label>
-
-        <button className="btn primary full" disabled={busy}>
-          {busy ? 'Signing in...' : 'Sign in'}
-        </button>
-
-        <p className="muted center">
-          New here? <Link to="/register">Create an account</Link>
-        </p>
+        <button className="btn primary full" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'}</button>
+        <p className="muted center">New here? <Link to="/register">Create an account</Link></p>
       </form>
-    </div>
+    </AuthShell>
   );
 }

@@ -1,38 +1,76 @@
-export const money = (n) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(n);
+import { diffDays, parseISO } from './dates.js';
 
-export const monthlyEquivalent = (sub) =>
-  sub.cycle === 'yearly' ? sub.price / 12 : sub.price;
+const p2 = (n) => String(n).padStart(2, '0');
 
-export const daysUntil = (date) => {
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((target - today) / 86400000);
-};
+export function makeFormatters(settings) {
+  const locale = settings.locale || 'en-IN';
+  const currency = settings.currency || 'INR';
 
-export const toInputDate = (date) => {
-  const d = new Date(date);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+  const money = (n, cur = currency, opts = {}) => {
+    const v = Number(n) || 0;
+    const digits = opts.decimals ?? (Math.abs(v - Math.round(v)) < 0.005 ? 0 : 2);
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: cur,
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      }).format(v);
+    } catch {
+      return `${cur} ${v.toFixed(digits)}`;
+    }
+  };
+  const moneyRound = (n, cur = currency) => money(n, cur, { decimals: 0 });
+  const number = (n) => new Intl.NumberFormat(locale).format(Number(n) || 0);
+  const percent = (x, d = 0) => `${((Number(x) || 0) * 100).toFixed(d)}%`;
 
-export const prettyDate = (date) =>
-  new Date(date).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const full = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const short = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const monthYear = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const monthShort = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' });
+  const monthShortYear = new Intl.DateTimeFormat(locale, { month: 'short', year: '2-digit', timeZone: 'UTC' });
+  const weekdayShort = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+  const weekdayLong = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
 
-export const urgency = (days) => (days <= 3 ? 'urgent' : days <= 7 ? 'soon' : 'ok');
+  const date = (iso) => {
+    const d = parseISO(iso);
+    if (!d) return '-';
+    switch (settings.dateFormat) {
+      case 'DD/MM/YYYY': return `${p2(d.getUTCDate())}/${p2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+      case 'MM/DD/YYYY': return `${p2(d.getUTCMonth() + 1)}/${p2(d.getUTCDate())}/${d.getUTCFullYear()}`;
+      case 'YYYY-MM-DD': return iso;
+      default: return full.format(d);
+    }
+  };
 
-export const urgencyLabel = (days) => {
-  if (days <= 0) return 'Renews today';
-  if (days === 1) return 'Renews tomorrow';
-  return `Renews in ${days} days`;
-};
+  const wrap = (fmt) => (iso) => { const d = parseISO(iso); return d ? fmt.format(d) : '-'; };
+
+  return {
+    money,
+    moneyRound,
+    number,
+    percent,
+    date,
+    shortDate: wrap(short),
+    monthYear: wrap(monthYear),
+    monthShort: wrap(monthShort),
+    monthShortYear: wrap(monthShortYear),
+    weekdayShort: wrap(weekdayShort),
+    weekdayLong: wrap(weekdayLong),
+  };
+}
+
+// How a subscription should be presented right now.
+export function renewalState(sub, today) {
+  if (sub.status === 'cancelled') return { key: 'cancelled', label: 'Cancelled', days: null };
+  if (sub.status === 'paused') return { key: 'paused', label: 'Paused', days: null };
+  const days = diffDays(sub.nextRenewal, today);
+  if (days < 0) return { key: 'urgent', label: `Overdue by ${-days}d`, days };
+  if (days === 0) return { key: 'today', label: 'Due today', days };
+  if (days === 1) return { key: 'soon', label: 'Tomorrow', days };
+  if (days <= 7) return { key: 'soon', label: `In ${days} days`, days };
+  return { key: 'ok', label: `In ${days} days`, days };
+}
+
+export const initials = (name = '') =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
