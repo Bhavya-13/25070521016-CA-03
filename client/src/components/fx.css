@@ -14,3 +14,7 @@
 .fx-rate input { max-width: 130px; }
 .fx-actions { display: flex; gap: 8px; justify-content: flex-end; }
 @media (max-width: 640px) { .fx-table th:nth-child(3), .fx-table td:nth-child(3) { display: none; } }
+
+.price-pair { display: flex; flex-direction: column; line-height: 1.3; }
+.sub-tile-price { flex-wrap: wrap; }
+.sub-tile-price .small { flex-basis: 100%; }

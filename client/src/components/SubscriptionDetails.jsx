@@ -50,8 +50,9 @@ export default function SubscriptionDetails({ sub, actions, onClose }) {
         <ServiceIcon name={sub.name} color={sub.color} icon={sub.icon} size={56} />
         <div>
           <div className="detail-price">
-            {fmt.money(sub.price, sub.currency)} <span className="muted">{cycleText(sub).toLowerCase()}</span>
+            {approx ? `\u2248 ${fmt.money(converter.convert(sub.price, sub.currency), currency)}` : fmt.money(sub.price, sub.currency)} <span className="muted">{cycleText(sub).toLowerCase()}</span>
           </div>
+          {approx && <span className="muted small">{fmt.money(sub.price, sub.currency)} originally</span>}
           <div className="badge-stack inline">
             <StatusBadge state={st} />
             <PaidBadge sub={sub} />

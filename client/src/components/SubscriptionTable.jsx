@@ -1,4 +1,5 @@
 import ServiceIcon from './ServiceIcon.jsx';
+import './fx.css';
 import StatusBadge, { PaidBadge, UnpaidBadge } from './StatusBadge.jsx';
 import { QuickActions } from './SubscriptionCard.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -6,7 +7,7 @@ import { cycleText } from '../utils/finance.js';
 import { renewalState } from '../utils/format.js';
 
 export default function SubscriptionTable({ subs, onOpen, onEdit, actions }) {
-  const { today, fmt } = useData();
+  const { today, fmt, converter, currency } = useData();
   return (
     <div className="table-wrap card">
       <table className="table">
@@ -35,7 +36,16 @@ export default function SubscriptionTable({ subs, onOpen, onEdit, actions }) {
                     </div>
                   </div>
                 </td>
-                <td data-label="Price"><strong>{fmt.money(s.price, s.currency)}</strong></td>
+                <td data-label="Price">
+                  {s.currency !== currency && converter.has(s.currency) ? (
+                    <div className="price-pair">
+                      <strong>{`\u2248 ${fmt.money(converter.convert(s.price, s.currency), currency)}`}</strong>
+                      <span className="muted small">{fmt.money(s.price, s.currency)} originally</span>
+                    </div>
+                  ) : (
+                    <strong>{fmt.money(s.price, s.currency)}</strong>
+                  )}
+                </td>
                 <td data-label="Billing">{cycleText(s)}</td>
                 <td data-label="Next renewal">{s.status === 'cancelled' ? '-' : fmt.date(s.nextRenewal)}</td>
                 <td data-label="Payment">{s.paymentMethod || '-'}</td>

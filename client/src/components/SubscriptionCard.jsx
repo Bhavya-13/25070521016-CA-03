@@ -1,5 +1,6 @@
 import { Check, Eye, Pause, Pencil, Play, RotateCcw, Trash2 } from 'lucide-react';
 import ServiceIcon from './ServiceIcon.jsx';
+import './fx.css';
 import StatusBadge, { PaidBadge, UnpaidBadge } from './StatusBadge.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -28,8 +29,9 @@ export function QuickActions({ sub, onOpen, onEdit, actions }) {
 }
 
 export default function SubscriptionCard({ sub, onOpen, onEdit, actions }) {
-  const { today, fmt } = useData();
+  const { today, fmt, converter, currency } = useData();
   const st = renewalState(sub, today);
+  const shown = sub.currency !== currency && converter.has(sub.currency) ? converter.convert(sub.price, sub.currency) : null;
 
   return (
     <article className={`sub-tile state-${st.key}`}>
@@ -47,8 +49,9 @@ export default function SubscriptionCard({ sub, onOpen, onEdit, actions }) {
       </div>
 
       <div className="sub-tile-price">
-        <strong>{fmt.money(sub.price, sub.currency)}</strong>
+        <strong>{shown != null ? `\u2248 ${fmt.money(shown, currency)}` : fmt.money(sub.price, sub.currency)}</strong>
         <span className="muted">{cycleText(sub)}</span>
+        {shown != null && <span className="muted small">{fmt.money(sub.price, sub.currency)} originally</span>}
       </div>
 
       <dl className="sub-tile-meta">

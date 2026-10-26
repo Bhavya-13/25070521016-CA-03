@@ -22,7 +22,7 @@ export default function Subscriptions() {
   const match = useMatch('/subscriptions/:id');
   const id = match?.params.id;
   const navigate = useNavigate();
-  const { subs, counted, today, fmt, loading } = useData();
+  const { subs, counted, today, fmt, loading, converter } = useData();
   const { openAdd, openEdit } = useUI();
   const { actions, dialog } = useSubscriptionActions({ onDeleted: () => navigate('/subscriptions') });
 
@@ -71,14 +71,17 @@ export default function Subscriptions() {
     list.sort((a, b) => {
       let r = 0;
       if (sort === 'renewal') r = a.nextRenewal.localeCompare(b.nextRenewal);
-      else if (sort === 'price') r = monthlyCost(a) - monthlyCost(b);
+      else if (sort === 'price') {
+        const inDisplay = (s) => converter.convert(monthlyCost(s), s.currency) ?? monthlyCost(s);
+        r = inDisplay(a) - inDisplay(b);
+      }
       else if (sort === 'name') r = a.name.localeCompare(b.name);
       else if (sort === 'category') r = a.category.localeCompare(b.category);
       else if (sort === 'billing') r = CYCLE_ORDER[a.cycle] - CYCLE_ORDER[b.cycle];
       return (r || a.name.localeCompare(b.name)) * mult;
     });
     return list;
-  }, [subs, search, status, category, billing, sort, dir, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [subs, search, status, category, billing, sort, dir, today, converter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const t = totals(counted);
   const filtersActive = search || status !== 'all' || category !== 'all' || billing !== 'all';
