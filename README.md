@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐕 Watchdog
+# Watchdog
 
 **Your subscriptions, under control.**
 
