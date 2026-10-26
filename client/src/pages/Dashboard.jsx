@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import KpiCard from '../components/ui/KpiCard.jsx';
+import FxNotice from '../components/FxNotice.jsx';
 import Segmented from '../components/ui/Segmented.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
@@ -117,10 +118,12 @@ export default function Dashboard() {
         )}
       </section>
 
+      <FxNotice />
+
       {excludedCount > 0 && (
         <p className="notice">
           {excludedCount} active {excludedCount === 1 ? 'subscription uses' : 'subscriptions use'} a currency other than {currency}, so
-          {excludedCount === 1 ? ' it is' : ' they are'} left out of these totals. Watchdog does not convert currencies.
+          {excludedCount === 1 ? ' it is' : ' they are'} left out of these totals because no exchange rate is available{excludedCount === 1 ? ' for it' : ' for them'}. Turn on conversion in Settings, or add your own rate.
         </p>
       )}
 
@@ -204,7 +207,7 @@ export default function Dashboard() {
                           <strong>{s.name}</strong>
                           <span className="muted small">{fmt.date(s.nextRenewal)} - {st.label}</span>
                         </span>
-                        <strong className="renewal-price">{fmt.money(s.price, s.currency)}</strong>
+                        <strong className="renewal-price" title={s.converted ? `${fmt.money(s.originalPrice, s.originalCurrency)} originally` : undefined}>{s.converted ? '\u2248 ' : ''}{fmt.money(s.price, s.currency)}</strong>
                         <StatusBadge state={st} />
                       </button>
                     </li>

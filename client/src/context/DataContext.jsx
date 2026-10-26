@@ -7,6 +7,7 @@ import { makeFormatters } from '../utils/format.js';
 import { buildInsights, isInsightHidden } from '../utils/insights.js';
 import { buildNotifications } from '../utils/notifications.js';
 import { applyTheme } from '../utils/theme.js';
+import { buildConverter, convertHistory } from '../utils/fx.js';
 
 const DataContext = createContext(null);
 
@@ -17,6 +18,7 @@ export function DataProvider({ children }) {
   const [history, setHistory] = useState([]);
   const [wallet, setWallet] = useState({ balance: 0, currency: 'INR' });
   const [walletTx, setWalletTx] = useState([]);
+  const [fx, setFx] = useState(null);
   const [today, setToday] = useState(() => todayISO('auto'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,6 +39,12 @@ export function DataProvider({ children }) {
     const w = await api.get('/wallet');
     setWallet(w.data.wallet);
     setWalletTx(w.data.transactions);
+    try {
+      const f = await api.get('/fx');
+      setFx(f.data);
+    } catch {
+      setFx(null); // exchange rates are optional
+    }
   }, []);
 
   const init = useCallback(async () => {
@@ -129,6 +137,12 @@ export function DataProvider({ children }) {
     await refresh();
   };
 
+  const refreshRates = async () => {
+    const { data } = await api.get('/fx', { params: { refresh: 1 } });
+    setFx(data);
+    return data;
+  };
+
   // ---- settings ----
   const saveSettings = useCallback(
     async (patch) => {
@@ -151,8 +165,34 @@ export function DataProvider({ children }) {
   const fmt = useMemo(() => makeFormatters(settings), [settings]);
 
   const activeSubs = useMemo(() => subs.filter((s) => s.status === 'active'), [subs]);
-  // Totals only use active subscriptions in the display currency. Nothing is converted.
-  const counted = useMemo(() => activeSubs.filter((s) => s.currency === currency), [activeSubs, currency]);
+  const converter = useMemo(
+    () => buildConverter({ rates: fx?.rates, manual: settings.fxManual, enabled: settings.convert, display: currency }),
+    [fx, settings.fxManual, settings.convert, currency]
+  );
+
+  // Totals use active subscriptions in the display currency. Subscriptions in another currency are
+  // converted with the exchange rates (approximate). Stored prices are never changed.
+  const counted = useMemo(
+    () =>
+      activeSubs.flatMap((s) => {
+        if (s.currency === currency) return [s];
+        if (!converter.has(s.currency)) return [];
+        const k = converter.rate(s.currency, currency);
+        return [{
+          ...s,
+          price: s.price * k,
+          altPrice: s.altPrice == null ? null : s.altPrice * k,
+          priceHistory: (s.priceHistory || []).map((h) => ({ ...h, price: h.price * k })),
+          currency,
+          originalPrice: s.price,
+          originalCurrency: s.currency,
+          converted: true,
+        }];
+      }),
+    [activeSubs, currency, converter]
+  );
+  const convertedCount = counted.filter((s) => s.converted).length;
+  const historyView = useMemo(() => convertHistory(history, converter, currency), [history, converter, currency]);
   const excludedCount = activeSubs.length - counted.length;
   const unpaid = useMemo(
     () =>
@@ -196,7 +236,7 @@ export function DataProvider({ children }) {
   };
 
   const value = {
-    user, subs, activeSubs, counted, excludedCount, history, settings, today, currency, fmt,
+    user, subs, activeSubs, counted, excludedCount, history: historyView, fx, converter, convertedCount, refreshRates, settings, today, currency, fmt,
     wallet, walletTx, unpaid, paySub, undoPayment, skipPending, topUp, withdraw,
     loading, error, refresh, reload: init,
     addSub, updateSub, removeSub, setStatus, markReviewed, importRows, loadDemo, clearDemo, resetAll,

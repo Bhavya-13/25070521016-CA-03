@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Database, Download, Globe, LogOut, Monitor, Moon, Palette, Shield, Sun, Trash2, Upload, User } from 'lucide-react';
+import RatesPanel from '../components/RatesPanel.jsx';
 import api, { errorMessage } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -174,10 +175,7 @@ function LocaleTab() {
           <div><span className="muted small">Today</span><strong>{fmt.date(today)}</strong></div>
         </div>
       </div>
-      <p className="notice">
-        Changing the currency changes how amounts are formatted and which subscriptions are added up. It never converts money,
-        because Watchdog does not use exchange rates. Subscriptions saved in another currency keep their own currency and are left out of totals.
-      </p>
+      <RatesPanel />
     </section>
   );
 }

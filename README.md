@@ -73,7 +73,7 @@ Create `server/.env` if it's missing (copy `.env.example`) and set `JWT_SECRET` 
 
 ## Good to know
 
-- Totals count only **active** subscriptions in your chosen currency. Nothing is converted.
+- Totals count only **active** subscriptions. Other currencies are converted to your chosen one with live exchange rates (approximate, and you can enter your own rate in Settings). Saved prices are never changed.
 - "Mark as cancelled" only changes tracking in Watchdog. It doesn't cancel anything with the provider.
 - Insights are simple rules on your own data. No AI, no bank access.
 - Not built yet: password reset, email reminders, real payments.

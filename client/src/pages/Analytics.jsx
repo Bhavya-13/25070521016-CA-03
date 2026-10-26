@@ -3,6 +3,7 @@ import { BarChart3, Download, Layers, PieChart, TrendingUp, Wallet } from 'lucid
 import { useData } from '../context/DataContext.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import KpiCard from '../components/ui/KpiCard.jsx';
+import FxNotice from '../components/FxNotice.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
 import AreaChart from '../components/charts/AreaChart.jsx';
@@ -25,7 +26,7 @@ const CYCLE_LABELS = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarter
 const CYCLE_COLORS = { weekly: '#67D9E8', monthly: '#8B78FF', quarterly: '#34D399', yearly: '#FBBF24', custom: '#FB7185' };
 
 export default function Analytics() {
-  const { subs, counted, history, today, fmt, currency, loading } = useData();
+  const { subs, counted, history, today, fmt, currency, converter, loading } = useData();
   const [range, setRange] = useState('12m');
   const [customFrom, setCustomFrom] = useState(addMonths(today, -6));
   const [customTo, setCustomTo] = useState(today);
@@ -107,8 +108,10 @@ export default function Analytics() {
     for (const s of subs) {
       if (category !== 'all' && s.category !== category) continue;
       for (const p of s.payments || []) {
-        if (p.currency !== currency || p.paidOn < rangeStart || p.paidOn > rangeEnd) continue;
-        out.push({ sub: s, ...p });
+        if (p.paidOn < rangeStart || p.paidOn > rangeEnd) continue;
+        const amount = converter.convert(p.amount, p.currency);
+        if (amount == null) continue;
+        out.push({ sub: s, ...p, amount, currency });
       }
     }
     return out;
@@ -172,6 +175,8 @@ export default function Analytics() {
         </select>
         <span className="muted small toolbar-note">The range applies to the recorded history chart. Other charts show your current plans.</span>
       </div>
+
+      <FxNotice />
 
       {counted.length === 0 ? (
         <div className="card">

@@ -19,13 +19,14 @@ function Stat({ label, value, hint }) {
 }
 
 export default function SubscriptionDetails({ sub, actions, onClose }) {
-  const { fmt, today, settings, currency } = useData();
+  const { fmt, today, settings, currency, converter } = useData();
   const { openEdit, openPay } = useUI();
   const st = renewalState(sub, today);
   const history = [...(sub.priceHistory || [])].reverse();
   const payments = [...(sub.payments || [])].reverse();
   const pending = sub.status === 'active' ? sub.pendingDates || [] : [];
-  const inTotals = sub.status === 'active' && sub.currency === currency;
+  const inTotals = sub.status === 'active' && converter.has(sub.currency);
+  const approx = sub.currency !== currency && converter.has(sub.currency);
   const lead = Number.isFinite(sub.reminderDays) ? sub.reminderDays : settings.notifications.defaultReminderDays;
 
   return (
@@ -62,14 +63,14 @@ export default function SubscriptionDetails({ sub, actions, onClose }) {
         <p className="notice">
           {sub.status !== 'active'
             ? `This subscription is ${sub.status}, so it is not counted in your recurring totals.`
-            : `This subscription is in ${sub.currency}, so it is left out of totals shown in ${currency}. Watchdog does not convert currencies.`}
+            : `This subscription is in ${sub.currency} and no exchange rate to ${currency} is available, so it is left out of totals.`}
         </p>
       )}
 
       <div className="stat-grid">
         <Stat label="Next renewal" value={sub.status === 'cancelled' ? '-' : fmt.date(sub.nextRenewal)} hint={sub.status === 'active' ? st.label : undefined} />
         <Stat label="Billing cycle" value={cycleText(sub)} />
-        <Stat label="Monthly equivalent" value={fmt.money(monthlyCost(sub), sub.currency)} />
+        <Stat label="Monthly equivalent" value={fmt.money(monthlyCost(sub), sub.currency)} hint={approx ? `about ${fmt.money(converter.convert(monthlyCost(sub), sub.currency))} in ${currency}` : undefined} />
         <Stat label="Annualized cost" value={fmt.money(annualCost(sub), sub.currency)} hint="Projected, not money already spent" />
         <Stat label="Payment method" value={sub.paymentMethod || 'Not specified'} />
         <Stat label="Started" value={sub.startDate ? fmt.date(sub.startDate) : 'Not specified'} />

@@ -21,7 +21,7 @@ function Field({ label, error, hint, children }) {
 }
 
 export default function SubscriptionForm({ state, onClose }) {
-  const { addSub, updateSub, settings, today, fmt, currency } = useData();
+  const { addSub, updateSub, settings, today, fmt, currency, converter } = useData();
   const toast = useToast();
   const editing = state.mode === 'edit';
   const initial = editing ? state.sub : null;
@@ -273,7 +273,7 @@ export default function SubscriptionForm({ state, onClose }) {
             <div><span className="muted small">Next charge</span><strong>{isISO(f.nextRenewal) ? fmt.date(f.nextRenewal) : '-'}</strong></div>
           </div>
           {f.currency !== currency && (
-            <p className="muted small">This uses {f.currency}, but your display currency is {currency}. It will be listed but left out of totals, because Watchdog never converts currencies.</p>
+            <p className="muted small">{converter.has(f.currency) ? `This uses ${f.currency}. Totals show it converted to ${currency} (approximate, using current exchange rates).` : `This uses ${f.currency}, but no exchange rate to ${currency} is available, so it will be left out of totals.`}</p>
           )}
         </div>
       </form>

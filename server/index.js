@@ -7,6 +7,7 @@ import subscriptionRoutes from './routes/subscriptions.js';
 import settingsRoutes from './routes/settings.js';
 import analyticsRoutes from './routes/analytics.js';
 import walletRoutes from './routes/wallet.js';
+import fxRoutes from './routes/fx.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/fx', fxRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });

@@ -9,6 +9,8 @@ export const DEFAULT_SETTINGS = {
   notifications: { renewals: true, dueToday: true, budget: true, insights: true, overdue: true, defaultReminderDays: 3 },
   insightStates: {},
   readNotifications: [],
+  convert: true,
+  fxManual: {},
 };
 
 const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -17,13 +19,13 @@ const isPlain = (v) => v && typeof v === 'object' && !Array.isArray(v);
 export function mergeSettings(base, patch) {
   const out = { ...base };
   for (const [k, v] of Object.entries(patch || {})) {
-    if (k === 'insightStates') {
-      const map = { ...(base.insightStates || {}) };
+    if (k === 'insightStates' || k === 'fxManual') {
+      const map = { ...(base[k] || {}) };
       for (const [ik, iv] of Object.entries(v || {})) {
         if (iv === null) delete map[ik];
         else map[ik] = iv;
       }
-      out.insightStates = map;
+      out[k] = map;
     } else if (isPlain(v) && isPlain(base[k])) {
       out[k] = { ...base[k], ...v };
     } else {

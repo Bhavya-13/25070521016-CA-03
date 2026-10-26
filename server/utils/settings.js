@@ -18,6 +18,8 @@ export const DEFAULT_SETTINGS = {
   },
   insightStates: {},
   readNotifications: [],
+  convert: true, // convert other currencies into the display currency
+  fxManual: {}, // your own rates: units of a currency per 1 USD
 };
 
 const THEMES = ['dark', 'light', 'system'];
@@ -40,6 +42,7 @@ export function resolveSettings(stored) {
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(isPlain(s.notifications) ? s.notifications : {}) },
     insightStates: isPlain(s.insightStates) ? s.insightStates : {},
     readNotifications: Array.isArray(s.readNotifications) ? s.readNotifications : [],
+    fxManual: isPlain(s.fxManual) ? s.fxManual : {},
   };
 }
 
@@ -53,6 +56,21 @@ export function applySettingsPatch(stored, patch) {
   if (typeof patch.locale === 'string' && patch.locale.length <= 16) next.locale = patch.locale;
   if (DATE_FORMATS.includes(patch.dateFormat)) next.dateFormat = patch.dateFormat;
   if (typeof patch.timezone === 'string' && patch.timezone.length <= 60) next.timezone = patch.timezone;
+
+  if (typeof patch.convert === 'boolean') next.convert = patch.convert;
+
+  if (isPlain(patch.fxManual)) {
+    const map = { ...next.fxManual };
+    for (const [cur, val] of Object.entries(patch.fxManual)) {
+      if (!CURRENCIES.includes(cur) || cur === 'USD') continue;
+      if (val === null) delete map[cur];
+      else {
+        const n = Number(val);
+        if (Number.isFinite(n) && n > 0 && n <= 1e9) map[cur] = n;
+      }
+    }
+    next.fxManual = map;
+  }
 
   if (isPlain(patch.budget)) {
     for (const k of ['monthly', 'annual', 'savingsTarget']) {

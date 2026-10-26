@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { errorMessage } from '../api.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import FxNotice from '../components/FxNotice.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
 import ServiceIcon from '../components/ServiceIcon.jsx';
 import { annualCost, annualFactor, monthlyCost, totals } from '../utils/finance.js';
@@ -147,6 +148,8 @@ export default function Savings() {
   return (
     <div className="stack">
       <PageHeader title="Savings Planner" subtitle="Set a budget, test what-if scenarios and track a savings goal. Nothing here changes your subscriptions." />
+
+      <FxNotice />
 
       <div className="grid-2">
         <section className="card">
