@@ -6,7 +6,10 @@ import auth from '../middleware/auth.js';
 import { cleanSubscription, STATUSES } from '../utils/validate.js';
 import { isISO, rollForward, localTodayISO } from '../utils/dates.js';
 import { rollWithPending, advanceOne } from '../utils/rolling.js';
-import { creditWallet, debitWallet, round2 } from '../utils/wallet.js';
+import { creditWallet, debitWallet, round2, walletSummary } from '../utils/wallet.js';
+import User from '../models/User.js';
+import { resolveSettings } from '../utils/settings.js';
+import { getRates } from '../utils/fx.js';
 import { recordSnapshot } from '../utils/snapshot.js';
 import { buildDemo } from '../utils/demo.js';
 
@@ -18,6 +21,27 @@ const getToday = (req) => {
   return isISO(t) ? t : localTodayISO();
 };
 const badId = (res) => res.status(400).json({ message: 'Invalid subscription id' });
+
+// How much the wallet is charged for a payment. When the wallet holds another currency, the amount is
+// converted at the current rate (your own rates from Settings win over the live ones).
+async function walletCharge(userId, sub, amount) {
+  const wallet = await walletSummary(userId);
+  if (wallet.currency === sub.currency) return { debitAmount: amount, debitCurrency: sub.currency, rate: 1 };
+
+  const user = await User.findById(userId, 'settings');
+  const settings = resolveSettings(user?.settings);
+  if (settings.convert === false) {
+    return { error: `Your wallet holds ${wallet.currency}. Turn on currency conversion in Settings to pay a ${sub.currency} subscription from it.` };
+  }
+  let live = null;
+  try { live = (await getRates()).rates; } catch { /* fall back to your own rates only */ }
+  const table = { USD: 1, ...(live || {}), ...settings.fxManual };
+  if (!(table[wallet.currency] > 0 && table[sub.currency] > 0)) {
+    return { error: `No exchange rate is available between ${sub.currency} and ${wallet.currency}.` };
+  }
+  const rate = table[wallet.currency] / table[sub.currency];
+  return { debitAmount: round2(amount * rate), debitCurrency: wallet.currency, rate };
+}
 const byRenewal = (a, b) => a.nextRenewal.localeCompare(b.nextRenewal) || a.name.localeCompare(b.name);
 
 // GET /api/subscriptions?today=YYYY-MM-DD
@@ -256,21 +280,26 @@ router.post('/:id/pay', async (req, res) => {
     if (paidOn > today) return res.status(400).json({ message: 'The payment date cannot be in the future' });
     const note = String(req.body.note || '').trim().slice(0, 200);
 
+    let charge = null;
     if (source === 'wallet') {
-      const updated = await debitWallet(req.userId, amount, sub.currency);
+      charge = await walletCharge(req.userId, sub, amount);
+      if (charge.error) return res.status(400).json({ message: charge.error });
+      const updated = await debitWallet(req.userId, charge.debitAmount, charge.debitCurrency);
       if (!updated) {
-        return res.status(400).json({ message: `Not enough balance in your ${sub.currency} wallet. Add money first.` });
+        return res.status(400).json({ message: `Not enough balance in your ${charge.debitCurrency} wallet. Add money first.` });
       }
-      debited = amount;
+      debited = charge.debitAmount;
+      const converted = charge.debitCurrency !== sub.currency ? ` (${sub.currency} ${amount} at ${Number(charge.rate.toPrecision(5))})` : '';
       tx = await WalletTx.create({
-        user: req.userId, type: 'payment', delta: -amount, balanceAfter: round2(updated.wallet.balance),
-        currency: sub.currency, note: note || `${sub.name} renewal`, subId: String(sub._id), subName: sub.name, forDate,
+        user: req.userId, type: 'payment', delta: -charge.debitAmount, balanceAfter: round2(updated.wallet.balance),
+        currency: charge.debitCurrency, note: `${note || `${sub.name} renewal`}${converted}`, subId: String(sub._id), subName: sub.name, forDate,
       });
     }
 
     sub.payments.push({
       forDate, paidOn, amount, currency: sub.currency, source, advanced: !isPending,
-      walletTxId: tx ? String(tx._id) : null, note,
+      walletTxId: tx ? String(tx._id) : null,
+      walletAmount: charge ? charge.debitAmount : null, walletCurrency: charge ? charge.debitCurrency : null, note,
     });
     if (isPending) sub.pendingDates = sub.pendingDates.filter((d) => d !== forDate);
     else sub.nextRenewal = advanceOne(sub);
@@ -309,10 +338,11 @@ router.post('/:id/pay/undo', async (req, res) => {
     await sub.save();
 
     if (payment.source === 'wallet') {
-      const updated = await creditWallet(req.userId, payment.amount);
+      const refund = payment.walletAmount ?? payment.amount; // what the wallet was actually charged
+      const updated = await creditWallet(req.userId, refund);
       await WalletTx.create({
-        user: req.userId, type: 'refund', delta: payment.amount, balanceAfter: round2(updated.wallet.balance),
-        currency: payment.currency, note: `Undone payment for ${sub.name}`,
+        user: req.userId, type: 'refund', delta: refund, balanceAfter: round2(updated.wallet.balance),
+        currency: payment.walletCurrency || payment.currency, note: `Undone payment for ${sub.name}`,
         subId: String(sub._id), subName: sub.name, forDate: payment.forDate,
       });
     }

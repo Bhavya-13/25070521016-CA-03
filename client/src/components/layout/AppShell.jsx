@@ -59,7 +59,11 @@ const crumbFor = (pathname) => {
 export default function AppShell() {
   const loc = useLocation();
   const { form, closeForm, openAdd, pay, closePay, searchOpen, setSearchOpen } = useUI();
-  const { error, reload, insights, wallet, fmt } = useData();
+  const { error, reload, insights, wallet, fmt, converter, currency } = useData();
+  const walletConverted = wallet.currency !== currency && converter.has(wallet.currency);
+  const walletText = walletConverted
+    ? `\u2248 ${fmt.moneyRound(converter.convert(wallet.balance, wallet.currency), currency)}`
+    : fmt.moneyRound(wallet.balance, wallet.currency);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar') === 'collapsed');
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -132,9 +136,9 @@ export default function AppShell() {
           </button>
 
           <div className="top-actions">
-            <Link to="/wallet" className="wallet-chip hide-sm" aria-label={`Wallet balance ${fmt.moneyRound(wallet.balance, wallet.currency)}`}>
+            <Link to="/wallet" className="wallet-chip hide-sm" aria-label={`Wallet balance ${walletText}`} title={walletConverted ? `${fmt.moneyRound(wallet.balance, wallet.currency)} in your wallet` : undefined}>
               <Wallet size={16} aria-hidden="true" />
-              {fmt.moneyRound(wallet.balance, wallet.currency)}
+              {walletText}
             </Link>
             <NotificationCenter />
             <button type="button" className="btn primary" onClick={() => openAdd()}>

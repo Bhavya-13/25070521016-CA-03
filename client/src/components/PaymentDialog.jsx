@@ -8,7 +8,7 @@ import { useOverlay } from '../hooks/useOverlay.js';
 import { nth } from '../utils/dates.js';
 
 export default function PaymentDialog({ subId, forDate, source: presetSource, onClose }) {
-  const { subs, wallet, fmt, today, paySub } = useData();
+  const { subs, wallet, fmt, today, paySub, converter } = useData();
   const toast = useToast();
   const ref = useRef(null);
   const titleId = useId();
@@ -28,8 +28,12 @@ export default function PaymentDialog({ subId, forDate, source: presetSource, on
   const target = pending ? forDate : sub.nextRenewal;
   const after = pending ? null : nth(sub.nextRenewal, sub.cycle, sub.customDays, 1);
   const amt = Number(amount);
-  const walletOk = wallet.currency === sub.currency;
-  const enough = walletOk && wallet.balance >= amt;
+
+  // what the wallet would be charged, converted to the wallet's currency when it differs
+  const sameCurrency = wallet.currency === sub.currency;
+  const need = sameCurrency ? amt : converter.convert(amt, sub.currency, wallet.currency);
+  const walletOk = need != null;
+  const enough = walletOk && Number.isFinite(need) && wallet.balance >= need;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -73,7 +77,9 @@ export default function PaymentDialog({ subId, forDate, source: presetSource, on
           <button type="button" role="radio" aria-checked={source === 'wallet'} className={`source-opt ${source === 'wallet' ? 'active' : ''}`} onClick={() => setSource('wallet')} disabled={!walletOk}>
             <Wallet size={18} aria-hidden="true" />
             <strong>Use wallet</strong>
-            <span className="muted small">{walletOk ? `Balance ${fmt.money(wallet.balance, wallet.currency)}` : `Wallet is in ${wallet.currency}`}</span>
+            <span className="muted small">
+              {walletOk ? `Balance ${fmt.money(wallet.balance, wallet.currency)}` : `No exchange rate to ${wallet.currency}`}
+            </span>
           </button>
         </div>
 
@@ -101,6 +107,12 @@ export default function PaymentDialog({ subId, forDate, source: presetSource, on
 
         {source === 'wallet' && (
           <>
+            {walletOk && !sameCurrency && Number.isFinite(need) && (
+              <p className="notice">
+                The wallet holds {wallet.currency}, so this takes about <strong>{fmt.money(need, wallet.currency)}</strong> from it,
+                converted at the current exchange rate.
+              </p>
+            )}
             {walletOk && !enough && (
               <p className="alert" role="alert">
                 Your wallet has {fmt.money(wallet.balance, wallet.currency)}, which is not enough. <Link to="/wallet" onClick={onClose}>Add money</Link>

@@ -12,6 +12,8 @@ const paymentEntry = new mongoose.Schema({
   source: { type: String, default: 'manual' }, // 'manual' | 'wallet'
   advanced: { type: Boolean, default: false },
   walletTxId: { type: String, default: null },
+  walletAmount: { type: Number, default: null }, // what the wallet was charged (in the wallet's currency)
+  walletCurrency: { type: String, default: null },
   note: { type: String, default: '' },
 });
 
