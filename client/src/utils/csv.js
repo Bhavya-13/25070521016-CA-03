@@ -106,3 +106,13 @@ export function parseSubscriptionCSV(text) {
   }));
   return { rows, errors: [] };
 }
+
+export function paymentsToCSV(subs) {
+  const lines = ['subscription,renewal_date,paid_on,amount,currency,source,note'];
+  for (const s of subs) {
+    for (const p of s.payments || []) {
+      lines.push([s.name, p.forDate, p.paidOn, p.amount, p.currency, p.source, p.note].map(esc).join(','));
+    }
+  }
+  return lines.join('\r\n');
+}

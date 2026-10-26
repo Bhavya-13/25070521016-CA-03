@@ -15,6 +15,8 @@ export function DataProvider({ children }) {
   const [subs, setSubs] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [history, setHistory] = useState([]);
+  const [wallet, setWallet] = useState({ balance: 0, currency: 'INR' });
+  const [walletTx, setWalletTx] = useState([]);
   const [today, setToday] = useState(() => todayISO('auto'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,6 +34,9 @@ export function DataProvider({ children }) {
     setSubs(data);
     const hist = await api.get('/analytics/history');
     setHistory(hist.data);
+    const w = await api.get('/wallet');
+    setWallet(w.data.wallet);
+    setWalletTx(w.data.transactions);
   }, []);
 
   const init = useCallback(async () => {
@@ -100,6 +105,30 @@ export function DataProvider({ children }) {
     await refresh();
   };
 
+  // ---- payments and wallet ----
+  // The wallet is a simulated balance. Paying from it records a payment you confirm; no real money moves.
+  const paySub = async (id, payload) => {
+    const { data } = await api.post(`/subscriptions/${id}/pay`, payload, q());
+    await refresh();
+    return data;
+  };
+  const undoPayment = async (id) => {
+    await api.post(`/subscriptions/${id}/pay/undo`, {}, q());
+    await refresh();
+  };
+  const skipPending = async (id, forDate) => {
+    await api.post(`/subscriptions/${id}/skip`, { forDate }, q());
+    await refresh();
+  };
+  const topUp = async (amount, note) => {
+    await api.post('/wallet/topup', { amount, note, currency: settingsRef.current.currency });
+    await refresh();
+  };
+  const withdraw = async (amount, note) => {
+    await api.post('/wallet/withdraw', { amount, note });
+    await refresh();
+  };
+
   // ---- settings ----
   const saveSettings = useCallback(
     async (patch) => {
@@ -125,6 +154,13 @@ export function DataProvider({ children }) {
   // Totals only use active subscriptions in the display currency. Nothing is converted.
   const counted = useMemo(() => activeSubs.filter((s) => s.currency === currency), [activeSubs, currency]);
   const excludedCount = activeSubs.length - counted.length;
+  const unpaid = useMemo(
+    () =>
+      activeSubs
+        .flatMap((s) => (s.pendingDates || []).map((d) => ({ sub: s, date: d })))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.sub.name.localeCompare(b.sub.name)),
+    [activeSubs]
+  );
 
   const allInsights = useMemo(
     () => buildInsights({ counted, settings, today, fmt }),
@@ -161,6 +197,7 @@ export function DataProvider({ children }) {
 
   const value = {
     user, subs, activeSubs, counted, excludedCount, history, settings, today, currency, fmt,
+    wallet, walletTx, unpaid, paySub, undoPayment, skipPending, topUp, withdraw,
     loading, error, refresh, reload: init,
     addSub, updateSub, removeSub, setStatus, markReviewed, importRows, loadDemo, clearDemo, resetAll,
     saveSettings,

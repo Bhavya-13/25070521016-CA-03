@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS = {
     dueToday: true,
     budget: true,
     insights: true,
+    overdue: true,
     defaultReminderDays: 3,
   },
   insightStates: {},
@@ -80,7 +81,7 @@ export function applySettingsPatch(stored, patch) {
   }
 
   if (isPlain(patch.notifications)) {
-    for (const k of ['renewals', 'dueToday', 'budget', 'insights']) {
+    for (const k of ['renewals', 'dueToday', 'budget', 'insights', 'overdue']) {
       if (typeof patch.notifications[k] === 'boolean') next.notifications[k] = patch.notifications[k];
     }
     const d = Math.round(Number(patch.notifications.defaultReminderDays));

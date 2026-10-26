@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, X } from 'lucide-react';
+import { Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Wallet, X } from 'lucide-react';
 import { useData } from '../../context/DataContext.jsx';
 import { useUI } from '../../context/UIContext.jsx';
 import { totals } from '../../utils/finance.js';
@@ -9,6 +9,7 @@ import NotificationCenter from '../NotificationCenter.jsx';
 import ProfileMenu from '../ProfileMenu.jsx';
 import GlobalSearch from '../GlobalSearch.jsx';
 import SubscriptionForm from '../SubscriptionForm.jsx';
+import PaymentDialog from '../PaymentDialog.jsx';
 
 function Brand() {
   return (
@@ -57,8 +58,8 @@ const crumbFor = (pathname) => {
 
 export default function AppShell() {
   const loc = useLocation();
-  const { form, closeForm, openAdd, searchOpen, setSearchOpen } = useUI();
-  const { error, reload, insights } = useData();
+  const { form, closeForm, openAdd, pay, closePay, searchOpen, setSearchOpen } = useUI();
+  const { error, reload, insights, wallet, fmt } = useData();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar') === 'collapsed');
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -131,6 +132,10 @@ export default function AppShell() {
           </button>
 
           <div className="top-actions">
+            <Link to="/wallet" className="wallet-chip hide-sm" aria-label={`Wallet balance ${fmt.moneyRound(wallet.balance, wallet.currency)}`}>
+              <Wallet size={16} aria-hidden="true" />
+              {fmt.moneyRound(wallet.balance, wallet.currency)}
+            </Link>
             <NotificationCenter />
             <button type="button" className="btn primary" onClick={() => openAdd()}>
               <Plus size={16} aria-hidden="true" />
@@ -156,6 +161,7 @@ export default function AppShell() {
       </div>
 
       {form && <SubscriptionForm state={form} onClose={closeForm} />}
+      {pay && <PaymentDialog subId={pay.subId} forDate={pay.forDate} source={pay.source} onClose={closePay} />}
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
     </div>
   );

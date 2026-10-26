@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS = {
   timezone: 'auto',
   budget: { monthly: null, annual: null, savingsTarget: null },
   goal: null,
-  notifications: { renewals: true, dueToday: true, budget: true, insights: true, defaultReminderDays: 3 },
+  notifications: { renewals: true, dueToday: true, budget: true, insights: true, overdue: true, defaultReminderDays: 3 },
   insightStates: {},
   readNotifications: [],
 };

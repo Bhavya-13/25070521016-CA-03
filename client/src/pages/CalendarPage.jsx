@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useData } from '../context/DataContext.jsx';
@@ -18,19 +18,22 @@ const monthGrid = (cursor) => {
   return Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
 };
 
+const KIND_LABEL = { confirmed: 'Scheduled', estimated: 'Estimated', paid: 'Paid', unpaid: 'Unpaid' };
+const evColor = (e) =>
+  e.kind === 'paid' ? 'var(--success)' : e.kind === 'unpaid' ? 'var(--danger)' : CATEGORY_COLORS[e.sub.category] || '#929CB3';
+
 function EventPill({ e, fmt, onOpen }) {
-  const color = CATEGORY_COLORS[e.sub.category] || '#929CB3';
   return (
     <button
       type="button"
-      className={`cal-event ${e.estimated ? 'estimated' : ''}`}
-      style={{ '--ev': color }}
+      className={`cal-event ${e.kind}`}
+      style={{ '--ev': evColor(e) }}
       onClick={(ev) => { ev.stopPropagation(); onOpen(e.sub); }}
-      title={`${e.sub.name}, ${fmt.money(e.sub.price, e.sub.currency)} (${e.estimated ? 'estimated' : 'scheduled'})`}
+      title={`${e.sub.name}, ${fmt.money(e.sub.price, e.sub.currency)} (${KIND_LABEL[e.kind].toLowerCase()})`}
     >
       <span className="cal-event-text">
         <span>{e.sub.name}</span>
-        <em>{fmt.moneyRound(e.sub.price, e.sub.currency)}</em>
+        <em>{e.kind === 'paid' ? 'Paid' : fmt.moneyRound(e.sub.price, e.sub.currency)}</em>
       </span>
     </button>
   );
@@ -44,14 +47,14 @@ function EventRow({ e, fmt, onOpen }) {
         <strong>{e.sub.name}</strong>
         <span className="muted small">{e.sub.category}</span>
       </span>
-      <span className={`tag ${e.estimated ? 'estimated' : 'confirmed'}`}>{e.estimated ? 'Estimated' : 'Scheduled'}</span>
+      <span className={`tag ${e.kind}`}>{KIND_LABEL[e.kind]}</span>
       <strong>{fmt.money(e.sub.price, e.sub.currency)}</strong>
     </button>
   );
 }
 
 export default function CalendarPage() {
-  const { counted, today, fmt, loading } = useData();
+  const { subs, counted, today, fmt, loading } = useData();
   const navigate = useNavigate();
   const [view, setView] = useState(() => (window.innerWidth < 700 ? 'agenda' : 'month'));
   const [cursor, setCursor] = useState(today);
@@ -62,6 +65,10 @@ export default function CalendarPage() {
   const pool = useMemo(
     () => (category === 'all' ? counted : counted.filter((s) => s.category === category)),
     [counted, category]
+  );
+  const poolAll = useMemo(
+    () => (category === 'all' ? subs : subs.filter((s) => s.category === category)),
+    [subs, category]
   );
 
   let days = [];
@@ -81,23 +88,38 @@ export default function CalendarPage() {
     to = endOfMonth(cursor);
   }
 
-  const events = useMemo(
-    () =>
-      scheduledCharges(pool, from, to).filter(
-        (e) => kind === 'all' || (kind === 'confirmed' ? !e.estimated : e.estimated)
-      ),
-    [pool, from, to, kind]
+  // scheduled / estimated charges, plus payments you confirmed and renewals still waiting to be marked
+  const build = useCallback(
+    (a, b) => {
+      const out = scheduledCharges(pool, a, b).map((e) => ({ sub: e.sub, date: e.date, kind: e.estimated ? 'estimated' : 'confirmed' }));
+      for (const s of poolAll) {
+        for (const p of s.payments || []) {
+          if (p.forDate >= a && p.forDate <= b) out.push({ sub: s, date: p.forDate, kind: 'paid' });
+        }
+        if (s.status === 'active') {
+          for (const d of s.pendingDates || []) {
+            if (d >= a && d <= b) out.push({ sub: s, date: d, kind: 'unpaid' });
+          }
+        }
+      }
+      return out
+        .filter((e) => kind === 'all' || e.kind === kind)
+        .sort((x, y) => x.date.localeCompare(y.date) || x.sub.name.localeCompare(y.sub.name));
+    },
+    [pool, poolAll, kind]
   );
+
+  const events = useMemo(() => build(from, to), [build, from, to]);
   const byDate = useMemo(() => {
     const m = {};
     events.forEach((e) => { (m[e.date] = m[e.date] || []).push(e); });
     return m;
   }, [events]);
+  const dayEvents = useMemo(() => build(selected, selected), [build, selected]);
 
   const w7 = useMemo(() => windowTotals(pool, today, 7), [pool, today]);
   const w30 = useMemo(() => windowTotals(pool, today, 30), [pool, today]);
   const w90 = useMemo(() => windowTotals(pool, today, 90), [pool, today]);
-  const dayEvents = useMemo(() => scheduledCharges(pool, selected, selected), [pool, selected]);
 
   const shift = (n) => {
     if (view === 'week') setCursor((c) => addDays(c, 7 * n));
@@ -124,7 +146,7 @@ export default function CalendarPage() {
     <div className="stack">
       <PageHeader
         title="Renewal calendar"
-        subtitle="See every scheduled charge and plan around the busy weeks."
+        subtitle="See every scheduled charge, what you have paid and what is still waiting."
         actions={
           <Segmented
             label="Calendar view"
@@ -150,9 +172,11 @@ export default function CalendarPage() {
                 {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
               </select>
               <select className="select" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Filter by charge type">
-                <option value="all">All charges</option>
+                <option value="all">Everything</option>
                 <option value="confirmed">Scheduled only</option>
                 <option value="estimated">Estimated only</option>
+                <option value="paid">Paid only</option>
+                <option value="unpaid">Unpaid only</option>
               </select>
             </div>
           </div>
@@ -164,7 +188,7 @@ export default function CalendarPage() {
           {view === 'agenda' ? (
             <div className="agenda">
               {Object.keys(byDate).length === 0 ? (
-                <p className="muted pad-sm">No charges in {fmt.monthYear(cursor)} with the current filters.</p>
+                <p className="muted pad-sm">Nothing in {fmt.monthYear(cursor)} with the current filters.</p>
               ) : (
                 Object.keys(byDate).sort().map((d) => (
                   <div key={d} className="agenda-day">
@@ -172,7 +196,7 @@ export default function CalendarPage() {
                       <strong>{fmt.weekdayLong(d)}</strong>
                       <span className="muted">{fmt.date(d)}</span>
                     </div>
-                    {byDate[d].map((e) => <EventRow key={`${e.sub._id}-${e.date}`} e={e} fmt={fmt} onOpen={open} />)}
+                    {byDate[d].map((e) => <EventRow key={`${e.sub._id}-${e.date}-${e.kind}`} e={e} fmt={fmt} onOpen={open} />)}
                   </div>
                 ))
               )}
@@ -191,12 +215,12 @@ export default function CalendarPage() {
                     className={`cal-cell ${d === today ? 'is-today' : ''} ${d === selected ? 'is-selected' : ''} ${dim ? 'is-dim' : ''}`}
                     onClick={() => setSelected(d)}
                   >
-                    <button type="button" className="cal-date" onClick={() => setSelected(d)} aria-label={`${fmt.date(d)}${list.length ? `, ${list.length} renewals` : ''}`}>
+                    <button type="button" className="cal-date" onClick={() => setSelected(d)} aria-label={`${fmt.date(d)}${list.length ? `, ${list.length} items` : ''}`}>
                       {Number(d.slice(8))}
                       {view === 'week' && <span className="muted"> {fmt.monthShort(d)}</span>}
                     </button>
                     <div className="cal-events">
-                      {list.slice(0, limit).map((e) => <EventPill key={`${e.sub._id}-${e.date}`} e={e} fmt={fmt} onOpen={open} />)}
+                      {list.slice(0, limit).map((e) => <EventPill key={`${e.sub._id}-${e.date}-${e.kind}`} e={e} fmt={fmt} onOpen={open} />)}
                       {list.length > limit && <span className="cal-more">+{list.length - limit} more</span>}
                     </div>
                   </div>
@@ -207,7 +231,9 @@ export default function CalendarPage() {
 
           <div className="legend-inline">
             <span><i className="legend-solid" />Scheduled: the next billing date you saved</span>
-            <span><i className="legend-dashed" />Estimated: later repeats worked out from the billing cycle</span>
+            <span><i className="legend-dashed" />Estimated: later repeats of the billing cycle</span>
+            <span><i className="legend-paid" />Paid: you marked it as paid</span>
+            <span><i className="legend-unpaid" />Unpaid: the date passed and it is not marked</span>
           </div>
         </section>
 
@@ -235,10 +261,10 @@ export default function CalendarPage() {
               <h2>{fmt.date(selected)}</h2>
             </div>
             {dayEvents.length === 0 ? (
-              <p className="muted">No renewals on this date.</p>
+              <p className="muted">Nothing on this date.</p>
             ) : (
               <div className="agenda-list">
-                {dayEvents.map((e) => <EventRow key={`${e.sub._id}-${e.date}`} e={e} fmt={fmt} onOpen={open} />)}
+                {dayEvents.map((e) => <EventRow key={`${e.sub._id}-${e.date}-${e.kind}`} e={e} fmt={fmt} onOpen={open} />)}
               </div>
             )}
           </section>

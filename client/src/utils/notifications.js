@@ -30,6 +30,19 @@ export function buildNotifications({ counted, settings, today, insights, fmt }) 
     }
   }
 
+  if (n.overdue !== false) {
+    for (const s of counted) {
+      for (const d of s.pendingDates || []) {
+        list.push({
+          id: `unpaid:${s._id}:${d}`, severity: 'warning', kind: 'unpaid',
+          title: `${s.name}: ${fmt.date(d)} renewal not marked as paid`,
+          body: `${fmt.money(s.price, s.currency)}. Open it to mark it as paid or skip it.`,
+          link: `/subscriptions/${s._id}`,
+        });
+      }
+    }
+  }
+
   const budget = Number(settings.budget?.monthly) || 0;
   if (budget > 0 && n.budget) {
     const { monthly } = totals(counted);

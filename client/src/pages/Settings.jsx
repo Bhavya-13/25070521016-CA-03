@@ -9,7 +9,7 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import Switch from '../components/ui/Switch.jsx';
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
 import { CURRENCIES, DATE_FORMATS, LOCALES } from '../utils/constants.js';
-import { downloadText, historyToCSV, parseSubscriptionCSV, subscriptionsToCSV } from '../utils/csv.js';
+import { downloadText, historyToCSV, parseSubscriptionCSV, paymentsToCSV, subscriptionsToCSV } from '../utils/csv.js';
 import { initials } from '../utils/format.js';
 
 const TABS = [
@@ -194,6 +194,7 @@ function NotificationsTab() {
       <Switch id="n-due" checked={n.dueToday} onChange={(v) => save({ notifications: { dueToday: v } })} label="Due-today notifications" description="Notify me on the day a subscription renews." />
       <Switch id="n-budget" checked={n.budget} onChange={(v) => save({ notifications: { budget: v } })} label="Budget warnings" description="Alert me when recurring costs approach or pass my monthly budget." />
       <Switch id="n-insight" checked={n.insights} onChange={(v) => save({ notifications: { insights: v } })} label="Insight notifications" description="Notify me about important Watchdog insights." />
+      <Switch id="n-overdue" checked={n.overdue !== false} onChange={(v) => save({ notifications: { overdue: v } })} label="Unpaid renewal reminders" description="Remind me when a renewal date passes without being marked as paid." />
       <div className="settings-form">
         <label className="field">
           <span className="field-label">Default reminder timing (days before renewal)</span>
@@ -272,6 +273,9 @@ function DataTab() {
           <button type="button" className="btn ghost" disabled={!history.some((h) => h.data?.[currency])} onClick={() => downloadText(`watchdog-history-${today}.csv`, historyToCSV(history, currency))}>
             <Download size={16} /> Export recorded history
           </button>
+          <button type="button" className="btn ghost" disabled={!subs.some((s) => (s.payments || []).length)} onClick={() => downloadText(`watchdog-payments-${today}.csv`, paymentsToCSV(subs))}>
+            <Download size={16} /> Export payments
+          </button>
         </div>
       </section>
 
@@ -324,7 +328,7 @@ function DataTab() {
 
       <section className="card danger-zone">
         <h2>Reset workspace</h2>
-        <p className="muted">Permanently deletes every subscription in your account, including price history. Your login and settings stay. Recorded monthly history is kept.</p>
+        <p className="muted">Permanently deletes every subscription in your account, including price history. Your login, settings, wallet balance and wallet transactions stay. Recorded monthly history is kept.</p>
         <button type="button" className="btn danger" disabled={subs.length === 0} onClick={() => setConfirm('reset')}><Trash2 size={16} /> Delete all subscriptions</button>
       </section>
 

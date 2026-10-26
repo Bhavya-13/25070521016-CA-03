@@ -1,8 +1,8 @@
-import { Ban, CheckCheck, Pause, Pencil, Play, RotateCcw, Trash2, Receipt } from 'lucide-react';
+import { Ban, Check, CheckCheck, Pause, Pencil, Play, Receipt, RotateCcw, Trash2, Undo2, Wallet } from 'lucide-react';
 import Drawer from './ui/Drawer.jsx';
 import EmptyState from './ui/EmptyState.jsx';
 import ServiceIcon from './ServiceIcon.jsx';
-import StatusBadge from './StatusBadge.jsx';
+import StatusBadge, { PaidBadge } from './StatusBadge.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { annualCost, cycleText, monthlyCost } from '../utils/finance.js';
@@ -20,9 +20,11 @@ function Stat({ label, value, hint }) {
 
 export default function SubscriptionDetails({ sub, actions, onClose }) {
   const { fmt, today, settings, currency } = useData();
-  const { openEdit } = useUI();
+  const { openEdit, openPay } = useUI();
   const st = renewalState(sub, today);
   const history = [...(sub.priceHistory || [])].reverse();
+  const payments = [...(sub.payments || [])].reverse();
+  const pending = sub.status === 'active' ? sub.pendingDates || [] : [];
   const inTotals = sub.status === 'active' && sub.currency === currency;
   const lead = Number.isFinite(sub.reminderDays) ? sub.reminderDays : settings.notifications.defaultReminderDays;
 
@@ -49,7 +51,10 @@ export default function SubscriptionDetails({ sub, actions, onClose }) {
           <div className="detail-price">
             {fmt.money(sub.price, sub.currency)} <span className="muted">{cycleText(sub).toLowerCase()}</span>
           </div>
-          <StatusBadge state={st} />
+          <div className="badge-stack inline">
+            <StatusBadge state={st} />
+            <PaidBadge sub={sub} />
+          </div>
         </div>
       </div>
 
@@ -71,14 +76,68 @@ export default function SubscriptionDetails({ sub, actions, onClose }) {
       </div>
 
       <section className="section">
+        <h3>Payments</h3>
+
+        {pending.length > 0 && (
+          <ul className="pay-list pending">
+            {pending.map((d) => (
+              <li key={d}>
+                <div>
+                  <strong>{fmt.date(d)}</strong>
+                  <span className="muted small">Renewal not marked as paid</span>
+                </div>
+                <div className="pay-actions">
+                  <button type="button" className="btn primary small" onClick={() => openPay(sub._id, d)}><Check size={14} /> Mark as paid</button>
+                  <button type="button" className="btn ghost small" onClick={() => actions.skip(sub, d)}>Skip</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {sub.status === 'active' && (
+          <div className="pay-next">
+            <div>
+              <span className="muted small">Upcoming renewal</span>
+              <strong>{fmt.date(sub.nextRenewal)}</strong>
+            </div>
+            <div className="pay-actions">
+              <button type="button" className="btn ghost small" onClick={() => openPay(sub._id)}><Check size={14} /> Mark as paid</button>
+              <button type="button" className="btn ghost small" onClick={() => openPay(sub._id, null, 'wallet')}><Wallet size={14} /> Pay from wallet</button>
+            </div>
+          </div>
+        )}
+
+        {payments.length === 0 ? (
+          <EmptyState compact icon={Receipt} title="No payments recorded" text="Mark a renewal as paid and it is listed here. Watchdog only records payments you confirm." />
+        ) : (
+          <ul className="pay-history">
+            {payments.map((p, i) => (
+              <li key={p._id || `${p.forDate}-${i}`}>
+                <div>
+                  <strong>{fmt.money(p.amount, p.currency)}</strong>
+                  <span className="muted small">
+                    Paid {fmt.date(p.paidOn)} for the {fmt.date(p.forDate)} renewal{p.note ? ` - ${p.note}` : ''}
+                  </span>
+                </div>
+                <span className={`tag ${p.source === 'wallet' ? 'wallet' : 'plain'}`}>{p.source === 'wallet' ? 'Wallet' : 'Manual'}</span>
+                {i === 0 && (
+                  <button type="button" className="btn ghost small" onClick={() => actions.askUndo(sub)}><Undo2 size={14} /> Undo</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="muted small">Paying from the wallet only changes your Watchdog balance. It does not send money to {sub.name}.</p>
+      </section>
+
+      <section className="section">
         <h3>Reminders</h3>
         <p className="muted">
           {lead === 0 ? 'You are reminded on the day it renews.' : `You are reminded ${lead} ${lead === 1 ? 'day' : 'days'} before it renews.`}
           {!settings.notifications.renewals && ' Renewal reminders are switched off in Settings.'}
         </p>
-        <p className="muted small">
-          Last reviewed: {sub.lastReviewedAt ? fmt.date(sub.lastReviewedAt) : 'never'}
-        </p>
+        <p className="muted small">Last reviewed: {sub.lastReviewedAt ? fmt.date(sub.lastReviewedAt) : 'never'}</p>
       </section>
 
       {sub.notes && (
@@ -124,11 +183,6 @@ export default function SubscriptionDetails({ sub, actions, onClose }) {
           </ul>
         )}
         <p className="muted small">Recorded whenever you change the price in Watchdog.</p>
-      </section>
-
-      <section className="section">
-        <h3>Billing history</h3>
-        <EmptyState compact icon={Receipt} title="No payment history" text="Watchdog tracks your subscription plan, not your bank transactions, so there are no confirmed past charges to show." />
       </section>
 
       <section className="section">

@@ -1,9 +1,12 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import Subscription from '../models/Subscription.js';
+import WalletTx from '../models/WalletTx.js';
 import auth from '../middleware/auth.js';
 import { cleanSubscription, STATUSES } from '../utils/validate.js';
 import { isISO, rollForward, localTodayISO } from '../utils/dates.js';
+import { rollWithPending, advanceOne } from '../utils/rolling.js';
+import { creditWallet, debitWallet, round2 } from '../utils/wallet.js';
 import { recordSnapshot } from '../utils/snapshot.js';
 import { buildDemo } from '../utils/demo.js';
 
@@ -26,7 +29,9 @@ router.get('/', async (req, res) => {
 
     for (const s of subs) {
       if (s.status === 'active' && s.nextRenewal < today) {
-        s.nextRenewal = rollForward(s.nextRenewal, s.cycle, s.customDays, today);
+        const r = rollWithPending(s, today);
+        s.nextRenewal = r.nextRenewal;
+        s.pendingDates = r.pendingDates;
         await s.save();
       }
     }
@@ -69,6 +74,9 @@ router.post('/import', async (req, res) => {
       seen.add(key);
       created.push({
         ...data,
+        nextRenewal: data.status === 'active' && data.nextRenewal < today
+          ? rollForward(data.nextRenewal, data.cycle, data.customDays, today)
+          : data.nextRenewal,
         user: req.userId,
         priceHistory: [{ price: data.price, changedAt: today }],
         lastReviewedAt: today,
@@ -142,6 +150,9 @@ router.post('/', async (req, res) => {
 
     const sub = await Subscription.create({
       ...data,
+      nextRenewal: data.status === 'active' && data.nextRenewal < today
+        ? rollForward(data.nextRenewal, data.cycle, data.customDays, today)
+        : data.nextRenewal,
       user: req.userId,
       priceHistory: [{ price: data.price, changedAt: today }],
       lastReviewedAt: today,
@@ -172,6 +183,7 @@ router.put('/:id', async (req, res) => {
     if (sub.status === 'active' && sub.nextRenewal < today) {
       sub.nextRenewal = rollForward(sub.nextRenewal, sub.cycle, sub.customDays, today);
     }
+    if (sub.status !== 'active') sub.pendingDates = [];
     await sub.save();
     await recordSnapshot(req.userId, today);
     res.json(sub);
@@ -197,12 +209,135 @@ router.patch('/:id/status', async (req, res) => {
     if (status === 'active' && sub.nextRenewal < today) {
       sub.nextRenewal = rollForward(sub.nextRenewal, sub.cycle, sub.customDays, today);
     }
+    if (status !== 'active') sub.pendingDates = [];
     await sub.save();
     await recordSnapshot(req.userId, today);
     res.json(sub);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Could not change status' });
+  }
+});
+
+// POST /api/subscriptions/:id/pay
+// body: { forDate?, source?: 'manual' | 'wallet', paidOn?, amount?, note? }
+// - forDate is one of pendingDates: records the payment for that missed renewal.
+// - otherwise it pays the upcoming renewal and moves nextRenewal forward one billing cycle.
+// - source 'wallet' deducts the simulated wallet balance. It does not pay the provider.
+router.post('/:id/pay', async (req, res) => {
+  let debited = null;
+  let tx = null;
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
+    const today = getToday(req);
+
+    const sub = await Subscription.findOne({ _id: req.params.id, user: req.userId });
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+    if (sub.status !== 'active') {
+      return res.status(400).json({ message: 'Only active subscriptions can be marked as paid. Resume it first.' });
+    }
+
+    const source = req.body.source === 'wallet' ? 'wallet' : 'manual';
+    const wanted = req.body.forDate;
+    const isPending = Boolean(wanted) && sub.pendingDates.includes(wanted);
+    if (wanted && !isPending && wanted !== sub.nextRenewal) {
+      return res.status(400).json({ message: 'That renewal date is not open for payment' });
+    }
+    const forDate = isPending ? wanted : sub.nextRenewal;
+    if (sub.payments.some((p) => p.forDate === forDate)) {
+      return res.status(409).json({ message: 'That renewal is already marked as paid' });
+    }
+
+    const amount = round2(req.body.amount === undefined || req.body.amount === '' ? sub.price : Number(req.body.amount));
+    if (!Number.isFinite(amount) || amount < 0) return res.status(400).json({ message: 'Enter a valid amount' });
+
+    let paidOn = source === 'wallet' ? today : req.body.paidOn || today;
+    if (!isISO(paidOn)) return res.status(400).json({ message: 'Payment date is not valid' });
+    if (paidOn > today) return res.status(400).json({ message: 'The payment date cannot be in the future' });
+    const note = String(req.body.note || '').trim().slice(0, 200);
+
+    if (source === 'wallet') {
+      const updated = await debitWallet(req.userId, amount, sub.currency);
+      if (!updated) {
+        return res.status(400).json({ message: `Not enough balance in your ${sub.currency} wallet. Add money first.` });
+      }
+      debited = amount;
+      tx = await WalletTx.create({
+        user: req.userId, type: 'payment', delta: -amount, balanceAfter: round2(updated.wallet.balance),
+        currency: sub.currency, note: note || `${sub.name} renewal`, subId: String(sub._id), subName: sub.name, forDate,
+      });
+    }
+
+    sub.payments.push({
+      forDate, paidOn, amount, currency: sub.currency, source, advanced: !isPending,
+      walletTxId: tx ? String(tx._id) : null, note,
+    });
+    if (isPending) sub.pendingDates = sub.pendingDates.filter((d) => d !== forDate);
+    else sub.nextRenewal = advanceOne(sub);
+    await sub.save();
+    res.json(sub);
+  } catch (err) {
+    console.error(err);
+    if (debited !== null) {
+      try {
+        await creditWallet(req.userId, debited);
+        if (tx) await WalletTx.deleteOne({ _id: tx._id });
+      } catch (e) {
+        console.error('Could not reverse wallet debit:', e.message);
+      }
+    }
+    res.status(500).json({ message: 'Could not record the payment' });
+  }
+});
+
+// POST /api/subscriptions/:id/pay/undo  -> removes the most recent payment (refunds the wallet if it was used)
+router.post('/:id/pay/undo', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
+    const sub = await Subscription.findOne({ _id: req.params.id, user: req.userId });
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+    if (!sub.payments.length) return res.status(400).json({ message: 'There is no payment to undo' });
+
+    const last = sub.payments[sub.payments.length - 1];
+    const payment = last.toObject();
+    if (payment.advanced) {
+      if (sub.nextRenewal > payment.forDate) sub.nextRenewal = payment.forDate;
+    } else if (sub.status === 'active' && !sub.pendingDates.includes(payment.forDate)) {
+      sub.pendingDates = [...sub.pendingDates, payment.forDate].sort();
+    }
+    sub.payments.pull(last._id);
+    await sub.save();
+
+    if (payment.source === 'wallet') {
+      const updated = await creditWallet(req.userId, payment.amount);
+      await WalletTx.create({
+        user: req.userId, type: 'refund', delta: payment.amount, balanceAfter: round2(updated.wallet.balance),
+        currency: payment.currency, note: `Undone payment for ${sub.name}`,
+        subId: String(sub._id), subName: sub.name, forDate: payment.forDate,
+      });
+    }
+    res.json(sub);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not undo the payment' });
+  }
+});
+
+// POST /api/subscriptions/:id/skip  { forDate }  -> dismisses a missed renewal without recording a payment
+router.post('/:id/skip', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return badId(res);
+    const sub = await Subscription.findOne({ _id: req.params.id, user: req.userId });
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+    if (!sub.pendingDates.includes(req.body.forDate)) {
+      return res.status(400).json({ message: 'That renewal is not waiting to be marked' });
+    }
+    sub.pendingDates = sub.pendingDates.filter((d) => d !== req.body.forDate);
+    await sub.save();
+    res.json(sub);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not skip that renewal' });
   }
 });
 

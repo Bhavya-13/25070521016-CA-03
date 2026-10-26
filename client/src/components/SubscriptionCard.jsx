@@ -1,14 +1,19 @@
-import { Eye, Pause, Pencil, Play, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Eye, Pause, Pencil, Play, RotateCcw, Trash2 } from 'lucide-react';
 import ServiceIcon from './ServiceIcon.jsx';
-import StatusBadge from './StatusBadge.jsx';
+import StatusBadge, { PaidBadge, UnpaidBadge } from './StatusBadge.jsx';
+import { useUI } from '../context/UIContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { cycleText } from '../utils/finance.js';
 import { renewalState } from '../utils/format.js';
 
 export function QuickActions({ sub, onOpen, onEdit, actions }) {
+  const { openPay } = useUI();
   return (
     <div className="quick-actions">
       <button type="button" className="icon-btn sm" onClick={() => onOpen(sub)} aria-label={`View ${sub.name}`} title="Details"><Eye size={15} /></button>
+      {sub.status === 'active' && (
+        <button type="button" className="icon-btn sm" onClick={() => openPay(sub._id, (sub.pendingDates || [])[0] || null)} aria-label={`Mark ${sub.name} as paid`} title="Mark as paid"><Check size={15} /></button>
+      )}
       <button type="button" className="icon-btn sm" onClick={() => onEdit(sub)} aria-label={`Edit ${sub.name}`} title="Edit"><Pencil size={15} /></button>
       {sub.status === 'cancelled' ? (
         <button type="button" className="icon-btn sm" onClick={() => actions.reactivate(sub)} aria-label={`Reactivate ${sub.name}`} title="Reactivate"><RotateCcw size={15} /></button>
@@ -34,7 +39,11 @@ export default function SubscriptionCard({ sub, onOpen, onEdit, actions }) {
           <button type="button" className="plain-link" onClick={() => onOpen(sub)}>{sub.name}</button>
           <span className="muted small">{sub.category}{sub.isDemo ? ' - Demo' : ''}</span>
         </div>
-        <StatusBadge state={st} />
+        <div className="badge-stack">
+          <StatusBadge state={st} />
+          <UnpaidBadge sub={sub} />
+          <PaidBadge sub={sub} />
+        </div>
       </div>
 
       <div className="sub-tile-price">
@@ -45,6 +54,7 @@ export default function SubscriptionCard({ sub, onOpen, onEdit, actions }) {
       <dl className="sub-tile-meta">
         <div><dt>Next renewal</dt><dd>{sub.status === 'cancelled' ? '-' : fmt.date(sub.nextRenewal)}</dd></div>
         <div><dt>Payment</dt><dd>{sub.paymentMethod || '-'}</dd></div>
+        <div><dt>Last paid</dt><dd>{(sub.payments || []).length ? fmt.shortDate(sub.payments[sub.payments.length - 1].paidOn) : '-'}</dd></div>
       </dl>
 
       <QuickActions sub={sub} onOpen={onOpen} onEdit={onEdit} actions={actions} />

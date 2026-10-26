@@ -1,0 +1,93 @@
+/* Sign in / sign up. Uses its own au- class names so it never clashes with the app styles. */
+.au-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); background: var(--bg); }
+
+/* ---- left: always-dark brand panel, so the page looks the same in both themes ---- */
+.au-hero {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 32px;
+  padding: 44px 56px; color: #f3f4f8;
+  background:
+    radial-gradient(720px 440px at 12% 0%, rgba(139, 120, 255, 0.42), transparent 60%),
+    radial-gradient(620px 440px at 100% 100%, rgba(103, 217, 232, 0.24), transparent 60%),
+    linear-gradient(160deg, #0b0f19 0%, #131838 100%);
+}
+.au-hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse at 28% 32%, #000 15%, transparent 75%);
+  mask-image: radial-gradient(ellipse at 28% 32%, #000 15%, transparent 75%);
+}
+.au-hero > * { position: relative; }
+.au-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em; }
+.au-logo { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #8b78ff, #5b8cff); box-shadow: 0 8px 22px -8px #8b78ff; }
+
+.au-hero-body { display: flex; flex-direction: column; gap: 18px; max-width: 520px; }
+.au-title { font-size: clamp(2rem, 3.2vw, 2.7rem); line-height: 1.1; letter-spacing: -0.035em; font-weight: 760; }
+.au-title span { background: linear-gradient(90deg, #b9adff, #67d9e8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.au-sub { color: #aab3c9; font-size: 1.02rem; max-width: 440px; }
+
+.au-preview {
+  margin-top: 6px; padding: 16px; border-radius: 20px; display: flex; flex-direction: column; gap: 8px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.13);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  animation: auFloat 7s ease-in-out infinite;
+}
+@keyframes auFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.au-preview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 0.92rem; }
+.au-sample { font-size: 0.68rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: #aab3c9; border: 1px dashed rgba(255, 255, 255, 0.25); padding: 2px 8px; border-radius: 999px; }
+.au-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.045); }
+.au-row-main { flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
+.au-when { font-size: 0.76rem; font-weight: 600; }
+.au-when.soon { color: #fbbf24; }
+.au-when.ok { color: #34d399; }
+.au-bars { display: flex; align-items: flex-end; gap: 6px; height: 46px; margin-top: 6px; padding: 0 4px; }
+.au-bars i { flex: 1; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, #8b78ff, rgba(139, 120, 255, 0.25)); }
+
+.au-points { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+.au-points li { display: flex; align-items: flex-start; gap: 12px; }
+.au-points li > span:last-child { display: flex; flex-direction: column; font-size: 0.9rem; color: #aab3c9; }
+.au-points strong { color: #f3f4f8; font-size: 0.95rem; }
+.au-point-icon { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0; color: #b9adff; background: rgba(139, 120, 255, 0.16); border: 1px solid rgba(139, 120, 255, 0.25); }
+.au-foot { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #8f99b3; }
+
+/* ---- right: the form, follows the active theme ---- */
+.au-main { position: relative; display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
+.au-theme { position: absolute; top: 20px; right: 20px; }
+.au-card { width: 100%; max-width: 410px; }
+.au-heading { font-size: 1.85rem; letter-spacing: -0.03em; }
+.au-lede { color: var(--muted); margin: 6px 0 22px; }
+
+.au-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.au-label { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.au-input { position: relative; }
+.au-lead { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; transition: color 0.15s; }
+.au-input:focus-within .au-lead { color: var(--primary); }
+.au-input .au-control { height: 48px; padding-left: 44px !important; padding-right: 44px !important; border-radius: 14px; background: var(--card); }
+.au-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: none; border-radius: 10px; background: transparent; color: var(--muted); }
+.au-eye:hover { color: var(--text); background: var(--card-2); }
+
+.au-hint { font-size: 0.78rem; color: var(--muted); }
+.au-strength { display: flex; align-items: center; gap: 12px; }
+.au-strength-bars { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.au-strength-bars i { height: 5px; border-radius: 999px; background: var(--border); transition: background 0.2s; }
+.au-strength-bars.lvl-0 i.on, .au-strength-bars.lvl-1 i.on { background: var(--danger); }
+.au-strength-bars.lvl-2 i.on { background: var(--warning); }
+.au-strength-bars.lvl-3 i.on { background: var(--cyan); }
+.au-strength-bars.lvl-4 i.on { background: var(--success); }
+.au-strength-label { font-size: 0.78rem; font-weight: 650; min-width: 64px; text-align: right; color: var(--muted); }
+
+.au-submit { width: 100%; height: 48px; margin-top: 6px; border-radius: 14px; font-size: 1rem; }
+.au-switch { margin-top: 20px; text-align: center; color: var(--muted); font-size: 0.92rem; }
+.au-switch a { font-weight: 650; }
+
+@media (max-width: 960px) {
+  .au-page { grid-template-columns: minmax(0, 1fr); }
+  .au-hero { padding: 26px 24px 28px; gap: 14px; }
+  .au-hero-body { gap: 8px; }
+  .au-title { font-size: 1.7rem; }
+  .au-preview, .au-points { display: none; }
+  .au-foot { display: none; }
+  .au-main { padding: 30px 20px 48px; align-items: flex-start; }
+  .au-theme { top: -48px; right: 16px; }
+}

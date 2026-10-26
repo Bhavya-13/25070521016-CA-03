@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { errorMessage } from '../api.js';
 import { useClickOutside } from '../hooks/useClickOutside.js';
 
-const KIND_ICON = { due: AlertTriangle, renewal: Clock, budget: Wallet, insight: Lightbulb };
+const KIND_ICON = { due: AlertTriangle, unpaid: AlertTriangle, renewal: Clock, budget: Wallet, insight: Lightbulb };
 
 export default function NotificationCenter() {
   const { notifications, unreadCount, markNotificationsRead } = useData();

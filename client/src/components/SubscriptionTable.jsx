@@ -1,5 +1,5 @@
 import ServiceIcon from './ServiceIcon.jsx';
-import StatusBadge from './StatusBadge.jsx';
+import StatusBadge, { PaidBadge, UnpaidBadge } from './StatusBadge.jsx';
 import { QuickActions } from './SubscriptionCard.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { cycleText } from '../utils/finance.js';
@@ -39,7 +39,7 @@ export default function SubscriptionTable({ subs, onOpen, onEdit, actions }) {
                 <td data-label="Billing">{cycleText(s)}</td>
                 <td data-label="Next renewal">{s.status === 'cancelled' ? '-' : fmt.date(s.nextRenewal)}</td>
                 <td data-label="Payment">{s.paymentMethod || '-'}</td>
-                <td data-label="Status"><StatusBadge state={st} /></td>
+                <td data-label="Status"><div className="badge-stack inline"><StatusBadge state={st} /><UnpaidBadge sub={s} /><PaidBadge sub={s} /></div></td>
                 <td className="cell-actions"><QuickActions sub={s} onOpen={onOpen} onEdit={onEdit} actions={actions} /></td>
               </tr>
             );

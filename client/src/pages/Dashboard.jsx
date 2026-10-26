@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CalendarClock, CreditCard, Plus, TrendingUp, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarClock, CreditCard, Plus, TrendingUp, Wallet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -32,8 +32,8 @@ function DashboardSkeleton() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { subs, counted, today, fmt, loading, history, currency, excludedCount, insights } = useData();
-  const { openAdd } = useUI();
+  const { subs, counted, today, fmt, loading, history, currency, excludedCount, insights, unpaid } = useData();
+  const { openAdd, openPay } = useUI();
   const navigate = useNavigate();
   const [mode, setMode] = useState('month');
 
@@ -122,6 +122,31 @@ export default function Dashboard() {
           {excludedCount} active {excludedCount === 1 ? 'subscription uses' : 'subscriptions use'} a currency other than {currency}, so
           {excludedCount === 1 ? ' it is' : ' they are'} left out of these totals. Watchdog does not convert currencies.
         </p>
+      )}
+
+      {unpaid.length > 0 && (
+        <section className="card unpaid-card" aria-labelledby="unpaid-title">
+          <div className="card-head">
+            <div>
+              <h2 id="unpaid-title"><AlertTriangle size={17} aria-hidden="true" /> {unpaid.length} {unpaid.length === 1 ? 'renewal is' : 'renewals are'} waiting for you</h2>
+              <p className="muted small">These renewal dates have passed and are not marked as paid or skipped yet.</p>
+            </div>
+          </div>
+          <ul className="unpaid-list">
+            {unpaid.slice(0, 4).map(({ sub, date }) => (
+              <li key={`${sub._id}-${date}`}>
+                <ServiceIcon name={sub.name} color={sub.color} icon={sub.icon} size={36} />
+                <span className="unpaid-main">
+                  <strong>{sub.name}</strong>
+                  <span className="muted small">{fmt.date(date)} - {fmt.money(sub.price, sub.currency)}</span>
+                </span>
+                <button type="button" className="btn ghost small" onClick={() => navigate(`/subscriptions/${sub._id}`)}>Review</button>
+                <button type="button" className="btn primary small" onClick={() => openPay(sub._id, date)}>Mark as paid</button>
+              </li>
+            ))}
+          </ul>
+          {unpaid.length > 4 && <Link to="/subscriptions" className="link-btn">View all {unpaid.length} on Subscriptions</Link>}
+        </section>
       )}
 
       <div className="kpi-grid">

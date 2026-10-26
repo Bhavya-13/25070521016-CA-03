@@ -47,6 +47,7 @@ export default function Subscriptions() {
     today: subs.filter((s) => s.status === 'active' && daysTo(s) === 0).length,
     paused: subs.filter((s) => s.status === 'paused').length,
     cancelled: subs.filter((s) => s.status === 'cancelled').length,
+    unpaid: subs.filter((s) => s.status === 'active' && (s.pendingDates || []).length > 0).length,
   }), [subs, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
@@ -57,6 +58,7 @@ export default function Subscriptions() {
       if (status === 'today' && !(s.status === 'active' && daysTo(s) === 0)) return false;
       if (status === 'paused' && s.status !== 'paused') return false;
       if (status === 'cancelled' && s.status !== 'cancelled') return false;
+      if (status === 'unpaid' && !(s.status === 'active' && (s.pendingDates || []).length > 0)) return false;
       if (category !== 'all' && s.category !== category) return false;
       if (billing !== 'all' && s.cycle !== billing) return false;
       if (term) {
@@ -84,7 +86,7 @@ export default function Subscriptions() {
 
   const STATUS_CHIPS = [
     ['all', 'All'], ['active', 'Active'], ['upcoming', 'Upcoming'],
-    ['today', 'Due today'], ['paused', 'Paused'], ['cancelled', 'Cancelled'],
+    ['today', 'Due today'], ['unpaid', 'Unpaid'], ['paused', 'Paused'], ['cancelled', 'Cancelled'],
   ];
 
   const open = (s) => navigate(`/subscriptions/${s._id}`);

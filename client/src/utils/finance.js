@@ -114,3 +114,16 @@ export function bucketCharges(subs, today, mode) {
   }
   return buckets;
 }
+
+// Renewal dates that passed without being marked as paid or skipped (active subscriptions only).
+export const unpaidItems = (subs) =>
+  subs
+    .filter((s) => s.status === 'active')
+    .flatMap((s) => (s.pendingDates || []).map((date) => ({ sub: s, date })))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.sub.name.localeCompare(b.sub.name));
+
+// A payment already covers the upcoming renewal when the latest payment is for today or later.
+export function paidAhead(sub, today) {
+  const last = (sub.payments || [])[(sub.payments || []).length - 1];
+  return last && last.forDate >= today ? last : null;
+}

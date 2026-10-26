@@ -25,7 +25,7 @@ const CYCLE_LABELS = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarter
 const CYCLE_COLORS = { weekly: '#67D9E8', monthly: '#8B78FF', quarterly: '#34D399', yearly: '#FBBF24', custom: '#FB7185' };
 
 export default function Analytics() {
-  const { counted, history, today, fmt, currency, loading } = useData();
+  const { subs, counted, history, today, fmt, currency, loading } = useData();
   const [range, setRange] = useState('12m');
   const [customFrom, setCustomFrom] = useState(addMonths(today, -6));
   const [customTo, setCustomTo] = useState(today);
@@ -100,6 +100,38 @@ export default function Analytics() {
       .map((r) => ({ ...r, delta: r.to - r.from }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
   }, [series, currency]);
+
+  // payments the user confirmed, inside the selected range
+  const confirmed = useMemo(() => {
+    const out = [];
+    for (const s of subs) {
+      if (category !== 'all' && s.category !== category) continue;
+      for (const p of s.payments || []) {
+        if (p.currency !== currency || p.paidOn < rangeStart || p.paidOn > rangeEnd) continue;
+        out.push({ sub: s, ...p });
+      }
+    }
+    return out;
+  }, [subs, category, currency, rangeStart, rangeEnd]);
+  const paidTotal = confirmed.reduce((t, p) => t + p.amount, 0);
+  const paidWallet = confirmed.filter((p) => p.source === 'wallet').reduce((t, p) => t + p.amount, 0);
+  const paidByMonth = useMemo(() => {
+    const m = new Map();
+    for (const p of confirmed) {
+      const k = p.paidOn.slice(0, 7);
+      const cur = m.get(k) || { manual: 0, wallet: 0 };
+      cur[p.source === 'wallet' ? 'wallet' : 'manual'] += p.amount;
+      m.set(k, cur);
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, v]) => ({
+      label: fmt.monthShortYear(`${month}-01`),
+      tooltipTitle: fmt.monthYear(`${month}-01`),
+      segments: [
+        { key: 'manual', name: 'Marked manually', value: v.manual, color: 'var(--primary)' },
+        { key: 'wallet', name: 'From wallet', value: v.wallet, color: 'var(--cyan)' },
+      ],
+    }));
+  }, [confirmed, fmt]);
 
   if (loading) {
     return <div className="stack"><Skeleton height={80} /><div className="kpi-grid">{[0, 1, 2, 3].map((i) => <Skeleton key={i} height={110} radius={16} />)}</div><Skeleton height={320} radius={16} /></div>;
@@ -255,6 +287,31 @@ export default function Analytics() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h2>Payments you confirmed</h2>
+                <p className="muted small">Only payments marked as paid in Watchdog, within the selected range, in {currency}</p>
+              </div>
+            </div>
+            {confirmed.length === 0 ? (
+              <EmptyState compact icon={Wallet} title="No confirmed payments in this range" text="Use Mark as paid on a subscription. Watchdog never assumes a charge happened." />
+            ) : (
+              <>
+                <div className="mini-stats">
+                  <div><span className="muted small">Total confirmed</span><strong>{fmt.money(paidTotal)}</strong></div>
+                  <div><span className="muted small">Payments</span><strong>{confirmed.length}</strong></div>
+                  <div><span className="muted small">Paid from wallet</span><strong>{fmt.money(paidWallet)}</strong></div>
+                </div>
+                <ColumnChart data={paidByMonth} format={(v) => fmt.money(v)} height={220} label="Confirmed payments by month" />
+                <div className="legend-inline">
+                  <span><i style={{ background: 'var(--primary)' }} />Marked manually</span>
+                  <span><i style={{ background: 'var(--cyan)' }} />Paid from wallet</span>
+                </div>
+              </>
             )}
           </section>
 

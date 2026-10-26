@@ -9,6 +9,7 @@ import CalendarPage from './pages/CalendarPage.jsx';
 import Analytics from './pages/Analytics.jsx';
 import Insights from './pages/Insights.jsx';
 import Savings from './pages/Savings.jsx';
+import WalletPage from './pages/WalletPage.jsx';
 import Settings from './pages/Settings.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/insights" element={<Insights />} />
         <Route path="/savings" element={<Savings />} />
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
